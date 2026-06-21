@@ -16,9 +16,11 @@ class Transform:
     x: float
     y: float
 
+
 @dataclass
 class Orb:
     points: int
+
 
 @dataclass
 class Collectible:
@@ -26,6 +28,7 @@ class Collectible:
     transform: Transform
     orb: Orb
     rect: pygame.Rect
+
 
 @dataclass
 class Animation:
@@ -68,6 +71,7 @@ def load_animation_frames(
         frames.append(frame)
     return frames
 
+
 def create_orb(image_path: str, points: int) -> Collectible:
     image = pygame.image.load(image_path).convert_alpha()
     image = pygame.transform.scale(image, (32, 32))
@@ -86,6 +90,7 @@ def create_orb(image_path: str, points: int) -> Collectible:
         rect=rect,
     )
 
+
 def detect_collision(rect1: pygame.Rect, collectible: Collectible, sound: pygame.mixer.sound) -> bool:
     global score
     if rect1.colliderect(collectible.rect):
@@ -95,19 +100,31 @@ def detect_collision(rect1: pygame.Rect, collectible: Collectible, sound: pygame
         collectible.transform.y = random.randint(40, HEIGHT - 40)
         collectible.rect.center = (collectible.transform.x, collectible.transform.y)
 
+
 def main()->None:
     global score
     clock = pygame.time.Clock()
+
+    moving = False
+    facing_left = False
 
     player_idle_frames = load_animation_frames(
         "assets/Player16x16.png",
         16,
         16,
         3,
-        row=0,
+        row=3,
         frame_count=4,
     )
 
+    player_run_frames = load_animation_frames(
+        "assets/Player16x16.png",
+        16,
+        16,
+        3,
+        row=1,
+        frame_count=4,
+    )
 
     player_animation = Animation(
         frames=player_idle_frames,
@@ -131,13 +148,12 @@ def main()->None:
         create_orb("assets/orb_red.png", 40),
     ]
 
-
     coin_sound = pygame.mixer.Sound("assets/coin.wav")
 
     score = 0
     font = pygame.font.Font(None, 36)
 
-    speed = 250
+    speed = 200
 
     running = True
 
@@ -152,17 +168,34 @@ def main()->None:
 
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             player_rect.x -= speed * dt
+            facing_left = True
+            moving = True
         
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             player_rect.x += speed * dt
-
+            facing_left = False
+            moving = True
+       
         if keys[pygame.K_UP] or keys[pygame.K_w]:
             player_rect.y -= speed * dt
 
         if keys[pygame.K_DOWN] or keys[pygame.K_s]:
             player_rect.y += speed * dt
-        
+
+        if not (keys[pygame.K_LEFT] or keys[pygame.K_a] or keys[pygame.K_RIGHT] or keys[pygame.K_d]):
+            moving = False
+            
         player_rect.clamp_ip(screen.get_rect())
+
+        if moving:
+            player_animation.frames = player_run_frames
+        else:
+            player_animation.frames = player_idle_frames
+
+        player_image = player_animation.frames[player_animation.frame_index]
+
+        if facing_left:
+            player_image = pygame.transform.flip(player_image, True, False)
 
         player_animation.timer += dt
 
@@ -173,9 +206,8 @@ def main()->None:
             if player_animation.frame_index >= len(player_animation.frames):
                 player_animation.frame_index = 0
 
-        player_image = player_animation.frames[player_animation.frame_index]
-        
 
+        
         for orb in orbs:
             detect_collision(player_rect, orb, coin_sound)
         
